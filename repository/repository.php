@@ -1,8 +1,5 @@
 <?php
 
-require_once __DIR__ . '/services/text-modifier.php';
-
-
 
 function getGenres(): array
 {
@@ -13,7 +10,7 @@ function getGenres(): array
         return $genres;
     }
 
-    require __DIR__ . '/data/movies.php';
+    require ROOT . '/data/movies.php';
 
     if (isset($genres) && is_array($genres))
     {
@@ -37,7 +34,7 @@ function getMovies(): array
         return $movies;
     }
 
-    require __DIR__ . '/data/movies.php';
+    require ROOT . '/data/movies.php';
 
     if (isset($movies) && is_array($movies))
     {
@@ -69,8 +66,8 @@ function genreInMovie(array $movie, ?string $genre = null): bool
     if ($genre !== null)
     {
         // Приводим жанры к нижнему регистру и ищем в массиве жанров фильма
-        $filteredGenre = strtolower($genre);
-        $movieGenres = array_map('strtolower', $movie['genres']);
+        $filteredGenre = mb_strtolower($genre);
+        $movieGenres = array_map('mb_strtolower', $movie['genres']);
 
         if (!in_array($filteredGenre, $movieGenres))
         {
@@ -85,12 +82,12 @@ function titleInMovie(array $movie, ?string $title = null): bool
     if ($title !== null)
     {
         // Приводим оба заголовка к нижнему регистру и ищем совпадение в названии фильма
-        $filteredTitle = strtolower($title);
-        $movieTitle = strtolower($movie['title']);
-        $movieOriginalTitle = strtolower($movie['original-title']);
+        $filteredTitle = mb_strtolower($title);
+        $movieTitle = mb_strtolower($movie['title']);
+        $movieOriginalTitle = mb_strtolower($movie['original-title']);
 
-        if ((!str_starts_with(toLowerCase($movieTitle), toLowerCase($filteredTitle))) &&
-            (!str_starts_with(toLowerCase($movieOriginalTitle), toLowerCase($filteredTitle))))
+        if ((!str_starts_with($movieTitle, $filteredTitle)) &&
+            (!str_starts_with($movieOriginalTitle, $filteredTitle)))
         {
             return false;
         }

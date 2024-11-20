@@ -39,7 +39,7 @@ if ($needFiltering)
 echo view('layout', [
     'lang' => option('APP_LANG', 'ru'),
     'title' => option('APP_NAME', 'BITFLIX'),
-    'leftMenu' => require_once ROOT . '/menu.php',
+    'leftMenu' => require_once __DIR__ . '/components/menu.php',
     'content' => view('pages/index' ,[
         'movies' => $movies,
     ]),
