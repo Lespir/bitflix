@@ -1,13 +1,14 @@
 <?php
 
 
-require_once __DIR__ . '/repository.php';
+require_once __DIR__ . "/repository.php";
 
 
 $mainUrls = [];
 $genreUrls = [];
 
 $genres = getGenres();
+
 $mainPages = option('APP_MAIN_PAGES', [
     ['url' => '/', 'text' => 'Главная'],
 ]);

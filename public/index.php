@@ -8,12 +8,20 @@ $movieFilters = [
     'title' => null,
 ];
 
+$movies = getMovies();
 
 if (isset($_GET['genre']))
 {
     $genreValue = getGenreValue($_GET['genre']);
-    $movieFilters['genre'] = !empty($genreValue) ? $genreValue : null;
-    $needFiltering = true;
+    if ($genreValue !== null)
+    {
+        $movieFilters['genre'] = $genreValue;
+        $needFiltering = true;
+    }
+    else
+    {
+        $movies = [];
+    }
 }
 
 if (isset($_GET['title']))
@@ -21,8 +29,6 @@ if (isset($_GET['title']))
     $movieFilters['title'] = $_GET['title'];
     $needFiltering = true;
 }
-
-$movies = getMovies();
 
 if ($needFiltering)
 {

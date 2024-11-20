@@ -15,7 +15,7 @@ $genres = [
 	'western' => 'Вестерн',
 	'war' => 'Военный',
 	'sport' => 'Спорт',
-	'history' => 'История'
+	'history' => 'История',
 ];
 
 $movies = [

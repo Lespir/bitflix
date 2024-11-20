@@ -12,7 +12,7 @@
         <hr>
         <span class="movie-item-description"><?= $movie['description'] ?></span>
         <div class="movie-item-inf">
-            <span>🕔 <?= $movie['duration'] ?> мин. / <?= date('H:i', $movie['duration'] * 60) ?></span>
+            <span>🕔 <?= $movie['duration'] ?> мин. / <?= minToHourMinutes((string)$movie['duration']) ?></span>
             <span class="genre"><?= implode(', ', $movie['genres']) ?></span>
         </div>
     </div>

@@ -9,7 +9,7 @@ if (isset($_GET['movie-id']))
     $movieId = (int)$_GET['movie-id'];
 }
 
-$movie = getMovies($movieId);
+$movie = getMovieById($movieId);
 
 echo view('layout', [
     'lang' => option('APP_LANG', 'ru'),

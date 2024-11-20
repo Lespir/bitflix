@@ -1,42 +1,58 @@
 <?php
 
-require_once __DIR__ . '/data/movies.php';
 require_once __DIR__ . '/services/text-modifier.php';
+
+
 
 function getGenres(): array
 {
-    global $genres;
-    if (isset($genres) && is_array($genres))
+    static $genres = null;
+
+    if ($genres !== null)
     {
         return $genres;
     }
 
-    return [];
+    require __DIR__ . '/data/movies.php';
+
+    if (isset($genres) && is_array($genres))
+    {
+        return $genres;
+    }
+    $genres = [];
+    return $genres;
 }
 
-function getGenreValue(string $genreKey): string
+function getGenreValue(string $genreKey): ?string
 {
-    try
-    {
-        return getGenres()[$genreKey];
-    }
-    catch (Exception $e)
-    {
-        return '';
-    }
+    return getGenres()[$genreKey];
 }
 
-function getMovies(?int $movieId = null): array
+function getMovies(): array
 {
-    global $movies;
-    if (!isset($movies) || !is_array($movies))
+    static $movies = null;
+
+    if ($movies !== null)
     {
-        return [];
+        return $movies;
     }
 
+    require __DIR__ . '/data/movies.php';
+
+    if (isset($movies) && is_array($movies))
+    {
+        return $movies;
+    }
+
+    $movies = [];
+    return $movies;
+}
+
+function getMovieById(?int $movieId = null) : array
+{
     if ($movieId !== null)
     {
-        foreach ($movies as $movie)
+        foreach (getMovies() as $movie)
         {
             if ($movie['id'] === $movieId)
             {
@@ -45,40 +61,48 @@ function getMovies(?int $movieId = null): array
         }
         return [];
     }
-    return $movies;
+    return [];
 }
+
+function genreInMovie(array $movie, ?string $genre = null): bool
+{
+    if ($genre !== null)
+    {
+        // Приводим жанры к нижнему регистру и ищем в массиве жанров фильма
+        $filteredGenre = strtolower($genre);
+        $movieGenres = array_map('strtolower', $movie['genres']);
+
+        if (!in_array($filteredGenre, $movieGenres))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+function titleInMovie(array $movie, ?string $title = null): bool
+{
+    if ($title !== null)
+    {
+        // Приводим оба заголовка к нижнему регистру и ищем совпадение в названии фильма
+        $filteredTitle = strtolower($title);
+        $movieTitle = strtolower($movie['title']);
+        $movieOriginalTitle = strtolower($movie['original-title']);
+
+        if ((!str_starts_with(toLowerCase($movieTitle), toLowerCase($filteredTitle))) &&
+            (!str_starts_with(toLowerCase($movieOriginalTitle), toLowerCase($filteredTitle))))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 
 function filterMovies(array $movies, array $movieFilters): array
 {
     return array_filter($movies, function($movie) use ($movieFilters) {
-        // Проверка фильтра по жанру
-        if ($movieFilters['genre'] !== null)
-        {
-            // Приводим жанры к нижнему регистру и ищем в массиве жанров фильма
-            $filteredGenre = strtolower($movieFilters['genre']);
-            $movieGenres = array_map('strtolower', $movie['genres']);
 
-            if (!in_array($filteredGenre, $movieGenres))
-            {
-                return false;
-            }
-        }
-
-        // Проверка фильтра по заголовку
-        if ($movieFilters['title'] !== null)
-        {
-            // Приводим оба заголовка к нижнему регистру и ищем совпадение в названии фильма
-            $filteredTitle = strtolower($movieFilters['title']);
-            $movieTitle = strtolower($movie['title']);
-            $movieOriginalTitle = strtolower($movie['original-title']);
-
-            if ((!str_starts_with(toLowerCase($movieTitle), toLowerCase($filteredTitle))) &&
-                (!str_starts_with(toLowerCase($movieOriginalTitle), toLowerCase($filteredTitle))))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return genreInMovie($movie, $movieFilters['genre']) && titleInMovie($movie, $movieFilters['title']);
     });
 }
