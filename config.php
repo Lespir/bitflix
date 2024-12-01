@@ -7,5 +7,8 @@ return [
         ['url' => '/', 'text' => 'Главная'],
         ['url' => '/favorites.php', 'text' => 'Избранное'],
     ],
-
+	'DB_HOST' => '',
+	'DB_USER' => '',
+	'DB_PASSWORD' => '',
+	'DB_NAME' => '',
 ];

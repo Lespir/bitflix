@@ -1,105 +1,217 @@
 <?php
 
-
 function getGenres(): array
 {
-    static $genres = null;
 
-    if ($genres !== null)
-    {
-        return $genres;
-    }
+	$connection = getDbConnect();
 
-    require ROOT . '/data/movies.php';
+	$result = mysqli_query($connection, "
+		SELECT CODE, NAME FROM genre
+	");
+	if (!$result)
+	{
+		throw new Exception(mysqli_error($connection));
+	}
 
-    if (isset($genres) && is_array($genres))
-    {
-        return $genres;
-    }
     $genres = [];
+	while ($row = mysqli_fetch_assoc($result))
+	{
+		$genres[$row['CODE']] = $row['NAME'];
+	}
+
     return $genres;
 }
 
-function getGenreValue(string $genreKey): ?string
+function getMoviesByGenre(?string $genre = null, int $limit = 20, int $offset = 0): array
 {
-    return getGenres()[$genreKey];
-}
+	$connection = getDbConnect();
 
-function getMovies(): array
-{
-    static $movies = null;
+	$query = "
+		SELECT 
+			m.ID,
+			m.TITLE,
+			m.ORIGINAL_TITLE,
+			m.DESCRIPTION,
+			m.DURATION,
+			m.RELEASE_DATE,
+			GROUP_CONCAT(DISTINCT g.NAME SEPARATOR ', ') AS genres
+		FROM 
+			movie m
+		LEFT JOIN 
+			movie_genre mg ON m.ID = mg.MOVIE_ID
+		LEFT JOIN 
+			genre g ON mg.GENRE_ID = g.ID
+		WHERE 
+			(? IS NULL OR m.ID IN (
+				SELECT mg_sub.MOVIE_ID
+				FROM movie_genre mg_sub
+				JOIN genre g_sub ON mg_sub.GENRE_ID = g_sub.ID
+				WHERE g_sub.CODE = ?
+			))
+		GROUP BY 
+			m.ID
+		LIMIT ? OFFSET ?;
+	";
 
-    if ($movies !== null)
-    {
-        return $movies;
-    }
-
-    require ROOT . '/data/movies.php';
-
-    if (isset($movies) && is_array($movies))
-    {
-        return $movies;
-    }
+	$statement = mysqli_prepare($connection, $query);
+	mysqli_stmt_bind_param($statement, "ssii", $genre, $genre, $limit, $offset);
+	mysqli_stmt_execute($statement);
+	$result = mysqli_stmt_get_result($statement);
+	if (!$result)
+	{
+		throw new Exception(mysqli_error($connection));
+	}
 
     $movies = [];
+	while ($row = mysqli_fetch_assoc($result))
+	{
+		$movies[] = [
+			'id' => $row['ID'],
+			'title' => $row['TITLE'],
+			'original-title' => $row['ORIGINAL_TITLE'],
+			'description' => $row['DESCRIPTION'],
+			'duration' => $row['DURATION'],
+			'release-date' => $row['RELEASE_DATE'],
+			'genres' => $row['genres'],
+		];
+	}
+
     return $movies;
+}
+
+function getMoviesByTitle(string $title): array
+{
+	$connection = getDbConnect();
+
+	$query = "
+        SELECT 
+            m.ID,
+            m.TITLE,
+            m.ORIGINAL_TITLE,
+            m.DESCRIPTION,
+            m.DURATION,
+            m.RELEASE_DATE,
+            GROUP_CONCAT(DISTINCT g.NAME SEPARATOR ', ') AS genres
+        FROM 
+            movie m
+        LEFT JOIN 
+            movie_genre mg ON m.ID = mg.MOVIE_ID
+        LEFT JOIN 
+            genre g ON mg.GENRE_ID = g.ID
+        WHERE 
+            LOWER(m.TITLE) LIKE CONCAT(?, '%') 
+            OR LOWER(m.ORIGINAL_TITLE) LIKE CONCAT(?, '%')
+        GROUP BY 
+            m.ID;
+	";
+
+	$statement = mysqli_prepare($connection, $query);
+	mysqli_stmt_bind_param($statement, "ss", $title, $title);
+	mysqli_stmt_execute($statement);
+	$result = mysqli_stmt_get_result($statement);
+	if (!$result)
+	{
+		throw new Exception(mysqli_error($connection));
+	}
+
+	$movies = [];
+	while ($row = mysqli_fetch_assoc($result))
+	{
+		$movies[] = [
+			'id' => $row['ID'],
+			'title' => $row['TITLE'],
+			'original-title' => $row['ORIGINAL_TITLE'],
+			'description' => $row['DESCRIPTION'],
+			'duration' => $row['DURATION'],
+			'release-date' => $row['RELEASE_DATE'],
+			'genres' => $row['genres'],
+		];
+	}
+
+	return $movies;
 }
 
 function getMovieById(?int $movieId = null) : array
 {
-    if ($movieId !== null)
-    {
-        foreach (getMovies() as $movie)
-        {
-            if ($movie['id'] === $movieId)
-            {
-                return $movie;
-            }
-        }
-        return [];
-    }
-    return [];
+    if ($movieId === null)
+	{
+		return [];
+	}
+
+	$connection = getDbConnect();
+
+	$query = "
+		SELECT
+			m.ID,
+			m.TITLE,
+			m.ORIGINAL_TITLE,
+			m.DESCRIPTION,
+			m.DURATION,
+			m.AGE_RESTRICTION,
+			m.RELEASE_DATE,
+			m.RATING,
+			d.NAME AS director,
+			GROUP_CONCAT(DISTINCT a.NAME SEPARATOR ', ') AS actors
+		FROM
+			movie m
+				LEFT JOIN
+			director d ON m.DIRECTOR_ID = d.ID
+
+				LEFT JOIN
+			movie_actor ma ON m.ID = ma.MOVIE_ID
+				LEFT JOIN
+			actor a ON ma.ACTOR_ID = a.ID
+		WHERE
+			m.ID = ?
+		GROUP BY 
+		    m.ID;
+	";
+
+	$statement = mysqli_prepare($connection, $query);
+	mysqli_stmt_bind_param($statement, "i", $movieId);
+	mysqli_stmt_execute($statement);
+	$result = mysqli_stmt_get_result($statement);
+	if (!$result)
+	{
+		throw new Exception(mysqli_error($connection));
+	}
+
+
+	$movie = [];
+	while ($row = mysqli_fetch_assoc($result))
+	{
+		$movie['id'] = $row['ID'];
+		$movie['title'] = $row['TITLE'];
+		$movie['original-title'] = $row['ORIGINAL_TITLE'];
+		$movie['description'] = $row['DESCRIPTION'];
+		$movie['duration'] = $row['DURATION'];
+		$movie['age-restriction'] = $row['AGE_RESTRICTION'];
+		$movie['release-date'] = $row['RELEASE_DATE'];
+		$movie['rating'] = $row['RATING'];
+		$movie['director'] = $row['director'];
+		$movie['actors'] = $row['actors'];
+	}
+
+	return $movie;
 }
 
-function genreInMovie(array $movie, ?string $genre = null): bool
+function getNumberOfMovies(string $genre = null, int $limit = 20) : int
 {
-    if ($genre !== null)
-    {
-        // Приводим жанры к нижнему регистру и ищем в массиве жанров фильма
-        $filteredGenre = mb_strtolower($genre);
-        $movieGenres = array_map('mb_strtolower', $movie['genres']);
+	$connection = getDbConnect();
 
-        if (!in_array($filteredGenre, $movieGenres))
-        {
-            return false;
-        }
-    }
-    return true;
-}
+	$query = "
+		SELECT COUNT(DISTINCT m.ID) AS total
+		FROM movie m
+		LEFT JOIN movie_genre mg ON m.ID = mg.MOVIE_ID
+		LEFT JOIN genre g ON mg.GENRE_ID = g.ID
+		WHERE (? IS NULL OR g.CODE = ?);
+	";
 
-function titleInMovie(array $movie, ?string $title = null): bool
-{
-    if ($title !== null)
-    {
-        // Приводим оба заголовка к нижнему регистру и ищем совпадение в названии фильма
-        $filteredTitle = mb_strtolower($title);
-        $movieTitle = mb_strtolower($movie['title']);
-        $movieOriginalTitle = mb_strtolower($movie['original-title']);
+	$statement = mysqli_prepare($connection, $query);
+	mysqli_stmt_bind_param($statement, "ss", $genre, $genre);
+	mysqli_stmt_execute($statement);
+	$result = mysqli_stmt_get_result($statement);
+	$totalMovies = mysqli_fetch_assoc($result)['total'];
 
-        if ((!str_starts_with($movieTitle, $filteredTitle)) &&
-            (!str_starts_with($movieOriginalTitle, $filteredTitle)))
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-
-function filterMovies(array $movies, array $movieFilters): array
-{
-    return array_filter($movies, function($movie) use ($movieFilters) {
-
-        return genreInMovie($movie, $movieFilters['genre']) && titleInMovie($movie, $movieFilters['title']);
-    });
+	return ceil($totalMovies / $limit);
 }

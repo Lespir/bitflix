@@ -2,12 +2,7 @@
 
 require_once __DIR__ . "/../boot.php";
 
-$movieId = null;
-
-if (isset($_GET['movie-id']))
-{
-    $movieId = (int)$_GET['movie-id'];
-}
+$movieId = $_GET['movie-id'] ?? null;
 
 $movie = getMovieById($movieId);
 

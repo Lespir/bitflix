@@ -2,39 +2,22 @@
 
 require_once __DIR__ . "/../boot.php";
 
-$needFiltering = false;
-$movieFilters = [
-    'genre' => null,
-    'title' => null,
-];
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 20;
+$offset = ($page - 1) * $limit;
 
-$movies = getMovies();
+$genre = $_GET['genre'] ?? null;
+$genreFilter = $genre;
 
-if (isset($_GET['genre']))
+if (isset($_GET['titleInput']))
 {
-    $genreValue = getGenreValue($_GET['genre']);
-    if ($genreValue !== null)
-    {
-        $movieFilters['genre'] = $genreValue;
-        $needFiltering = true;
-    }
-    else
-    {
-        $movies = [];
-    }
-}
-
-if (isset($_GET['title']))
+	$movies = getMoviesByTitle(mb_strtolower($_GET['titleInput']));
+	$totalPages = null;
+} else
 {
-    $movieFilters['title'] = $_GET['title'];
-    $needFiltering = true;
+	$movies = getMoviesByGenre($genre, $limit, $offset);
+	$totalPages = getNumberOfMovies($genre, $limit);
 }
-
-if ($needFiltering)
-{
-    $movies = filterMovies($movies, $movieFilters);
-}
-
 
 echo view('layout', [
     'lang' => option('APP_LANG', 'ru'),
@@ -42,5 +25,7 @@ echo view('layout', [
     'leftMenu' => require_once __DIR__ . '/components/menu.php',
     'content' => view('pages/index' ,[
         'movies' => $movies,
+		'totalPages' => $totalPages,
+		'genreFilter' => $genreFilter,
     ]),
 ]);

@@ -48,7 +48,7 @@ $totalSquares = 10;
                     </div>
                     <div class="meta-p"><span>В главных ролях:</span>
                         <div class="meta-inf">
-                            <?= implode(', ', $movie['cast']) ?>
+                            <?= $movie['cast'] ?>
                         </div>
                     </div>
                 </div>

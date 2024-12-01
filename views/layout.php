@@ -29,10 +29,10 @@
     </header>
     <div class="right">
         <div class="header">
-            <div class="search-block">
-                <input type="text" id="titleInput" placeholder="&#128269 Поиск по каталогу...">
-                <button type="submit" onclick="addTitleToUrl()" class="button">Искать</button>
-            </div>
+            <form action="/index.php" method="get" class="search-block">
+                <input type="text" name="titleInput" placeholder="&#128269 Поиск по каталогу...">
+                <button type="submit" class="button">Искать</button>
+            </form>
             <a class="button add-film-button" href="/add-movie.php">Добавить фильм</a>
         </div>
         <div class="content">
