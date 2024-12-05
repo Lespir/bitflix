@@ -27,31 +27,30 @@ function getMoviesByGenre(?string $genre = null, int $limit = 20, int $offset = 
 	$connection = getDbConnect();
 
 	$query = "
-		SELECT 
+        SELECT
 			m.ID,
 			m.TITLE,
 			m.ORIGINAL_TITLE,
 			m.DESCRIPTION,
 			m.DURATION,
 			m.RELEASE_DATE,
-			GROUP_CONCAT(DISTINCT g.NAME SEPARATOR ', ') AS genres
-		FROM 
-			movie m
-		LEFT JOIN 
-			movie_genre mg ON m.ID = mg.MOVIE_ID
-		LEFT JOIN 
-			genre g ON mg.GENRE_ID = g.ID
-		WHERE 
-			(? IS NULL OR m.ID IN (
-				SELECT mg_sub.MOVIE_ID
-				FROM movie_genre mg_sub
-				JOIN genre g_sub ON mg_sub.GENRE_ID = g_sub.ID
-				WHERE g_sub.CODE = ?
-			))
-		GROUP BY 
-			m.ID
-		LIMIT ? OFFSET ?;
-	";
+			g.NAME AS genre
+		FROM
+			(SELECT m_sub.ID
+			 FROM movie m_sub
+			 WHERE (? IS NULL OR m_sub.ID IN (
+				 SELECT mg_sub.MOVIE_ID
+				 FROM movie_genre mg_sub
+						  JOIN genre g_sub ON mg_sub.GENRE_ID = g_sub.ID
+				 WHERE g_sub.CODE = ?
+			 ))
+			 ORDER BY m_sub.ID
+			 LIMIT ? OFFSET ?) AS limited_movies
+				JOIN movie m ON limited_movies.ID = m.ID
+				LEFT JOIN movie_genre mg ON m.ID = mg.MOVIE_ID
+				LEFT JOIN genre g ON mg.GENRE_ID = g.ID
+		ORDER BY m.ID, g.NAME;
+    ";
 
 	$statement = mysqli_prepare($connection, $query);
 	mysqli_stmt_bind_param($statement, "ssii", $genre, $genre, $limit, $offset);
@@ -65,18 +64,26 @@ function getMoviesByGenre(?string $genre = null, int $limit = 20, int $offset = 
     $movies = [];
 	while ($row = mysqli_fetch_assoc($result))
 	{
-		$movies[] = [
-			'id' => $row['ID'],
-			'title' => $row['TITLE'],
-			'original-title' => $row['ORIGINAL_TITLE'],
-			'description' => $row['DESCRIPTION'],
-			'duration' => $row['DURATION'],
-			'release-date' => $row['RELEASE_DATE'],
-			'genres' => $row['genres'],
-		];
+		$movieId = $row['ID'];
+
+		if (!isset($movies[$movieId])) {
+			$movies[$movieId] = [
+				'id' => $row['ID'],
+				'title' => $row['TITLE'],
+				'original-title' => $row['ORIGINAL_TITLE'],
+				'description' => $row['DESCRIPTION'],
+				'duration' => $row['DURATION'],
+				'release-date' => $row['RELEASE_DATE'],
+				'genres' => [],
+			];
+		}
+
+		if (!empty($row['genre']) && !in_array($row['genre'], $movies[$movieId]['genres'])) {
+			$movies[$movieId]['genres'][] = $row['genre'];
+		}
 	}
 
-    return $movies;
+	return array_values($movies);
 }
 
 function getMoviesByTitle(string $title): array
@@ -91,7 +98,7 @@ function getMoviesByTitle(string $title): array
             m.DESCRIPTION,
             m.DURATION,
             m.RELEASE_DATE,
-            GROUP_CONCAT(DISTINCT g.NAME SEPARATOR ', ') AS genres
+            g.NAME AS genre
         FROM 
             movie m
         LEFT JOIN 
@@ -99,14 +106,15 @@ function getMoviesByTitle(string $title): array
         LEFT JOIN 
             genre g ON mg.GENRE_ID = g.ID
         WHERE 
-            LOWER(m.TITLE) LIKE CONCAT(?, '%') 
-            OR LOWER(m.ORIGINAL_TITLE) LIKE CONCAT(?, '%')
-        GROUP BY 
-            m.ID;
+            LOWER(m.TITLE) LIKE ?
+            OR LOWER(m.ORIGINAL_TITLE) LIKE ?
+        ORDER BY 
+            m.ID, g.NAME
 	";
 
+	$titleFilter = strtolower($title) . '%';
 	$statement = mysqli_prepare($connection, $query);
-	mysqli_stmt_bind_param($statement, "ss", $title, $title);
+	mysqli_stmt_bind_param($statement, "ss", $titleFilter, $titleFilter);
 	mysqli_stmt_execute($statement);
 	$result = mysqli_stmt_get_result($statement);
 	if (!$result)
@@ -117,18 +125,26 @@ function getMoviesByTitle(string $title): array
 	$movies = [];
 	while ($row = mysqli_fetch_assoc($result))
 	{
-		$movies[] = [
-			'id' => $row['ID'],
-			'title' => $row['TITLE'],
-			'original-title' => $row['ORIGINAL_TITLE'],
-			'description' => $row['DESCRIPTION'],
-			'duration' => $row['DURATION'],
-			'release-date' => $row['RELEASE_DATE'],
-			'genres' => $row['genres'],
-		];
+		$movieId = $row['ID'];
+
+		if (!isset($movies[$movieId])) {
+			$movies[$movieId] = [
+				'id' => $row['ID'],
+				'title' => $row['TITLE'],
+				'original-title' => $row['ORIGINAL_TITLE'],
+				'description' => $row['DESCRIPTION'],
+				'duration' => $row['DURATION'],
+				'release-date' => $row['RELEASE_DATE'],
+				'genres' => [],
+			];
+		}
+
+		if ($row['genre']) {
+			$movies[$movieId]['genres'][] = $row['genre'];
+		}
 	}
 
-	return $movies;
+	return array_values($movies);
 }
 
 function getMovieById(?int $movieId = null) : array
@@ -142,30 +158,27 @@ function getMovieById(?int $movieId = null) : array
 
 	$query = "
 		SELECT
-			m.ID,
-			m.TITLE,
-			m.ORIGINAL_TITLE,
-			m.DESCRIPTION,
-			m.DURATION,
-			m.AGE_RESTRICTION,
-			m.RELEASE_DATE,
-			m.RATING,
-			d.NAME AS director,
-			GROUP_CONCAT(DISTINCT a.NAME SEPARATOR ', ') AS actors
-		FROM
-			movie m
-				LEFT JOIN
-			director d ON m.DIRECTOR_ID = d.ID
-
-				LEFT JOIN
-			movie_actor ma ON m.ID = ma.MOVIE_ID
-				LEFT JOIN
-			actor a ON ma.ACTOR_ID = a.ID
-		WHERE
-			m.ID = ?
-		GROUP BY 
-		    m.ID;
-	";
+            m.ID,
+            m.TITLE,
+            m.ORIGINAL_TITLE,
+            m.DESCRIPTION,
+            m.DURATION,
+            m.AGE_RESTRICTION,
+            m.RELEASE_DATE,
+            m.RATING,
+            d.NAME AS director,
+            a.NAME AS actor
+        FROM
+            movie m
+        LEFT JOIN
+            director d ON m.DIRECTOR_ID = d.ID
+        LEFT JOIN
+            movie_actor ma ON m.ID = ma.MOVIE_ID
+        LEFT JOIN
+            actor a ON ma.ACTOR_ID = a.ID
+        WHERE
+            m.ID = ?;
+    ";
 
 	$statement = mysqli_prepare($connection, $query);
 	mysqli_stmt_bind_param($statement, "i", $movieId);
@@ -178,24 +191,38 @@ function getMovieById(?int $movieId = null) : array
 
 
 	$movie = [];
+	$actors = [];
 	while ($row = mysqli_fetch_assoc($result))
 	{
-		$movie['id'] = $row['ID'];
-		$movie['title'] = $row['TITLE'];
-		$movie['original-title'] = $row['ORIGINAL_TITLE'];
-		$movie['description'] = $row['DESCRIPTION'];
-		$movie['duration'] = $row['DURATION'];
-		$movie['age-restriction'] = $row['AGE_RESTRICTION'];
-		$movie['release-date'] = $row['RELEASE_DATE'];
-		$movie['rating'] = $row['RATING'];
-		$movie['director'] = $row['director'];
-		$movie['actors'] = $row['actors'];
+		if (empty($movie))
+		{
+			$movie = [
+				'id' => $row['ID'],
+				'title' => $row['TITLE'],
+				'original-title' => $row['ORIGINAL_TITLE'],
+				'description' => $row['DESCRIPTION'],
+				'duration' => $row['DURATION'],
+				'age-restriction' => $row['AGE_RESTRICTION'],
+				'release-date' => $row['RELEASE_DATE'],
+				'rating' => $row['RATING'],
+				'director' => $row['director'],
+				'actors' => [],
+			];
+		}
+
+		if (!empty($row['actor']) && !in_array($row['actor'], $actors)) {
+			$actors[] = $row['actor'];
+		}
+	}
+
+	if (!empty($movie)) {
+		$movie['actors'] = $actors;
 	}
 
 	return $movie;
 }
 
-function getNumberOfMovies(string $genre = null, int $limit = 20) : int
+function getNumberOfMovies(?string $genre = null, int $limit = 20) : int
 {
 	$connection = getDbConnect();
 

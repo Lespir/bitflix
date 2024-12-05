@@ -1,6 +1,6 @@
 <?php
 
-function getDbConnect()
+function getDbConnect(): false|mysqli
 {
 	static $connection = null;
 
